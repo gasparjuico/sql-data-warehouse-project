@@ -40,6 +40,7 @@ LEFT JOIN silver.erp_cust_az12 AS ca
 ON ci.cst_key = ca.cid
 LEFT JOIN silver.erp_loc_a101 AS la
 ON ci.cst_key = la.cid;
+GO
 
 -- =============================================================================
 -- Create Dimension: gold.dim_products
@@ -65,6 +66,7 @@ FROM silver.crm_prd_info AS pn
 LEFT JOIN silver.erp_px_cat_g1v2 pc
 ON pn.cat_id = pc.id
 WHERE prd_end_dt IS NULL; -- Filter out all historical data
+GO
 
 -- =============================================================================
 -- Create Fact Table: gold.fact_sales
@@ -78,7 +80,10 @@ SELECT
 	sd.sls_ord_num AS order_number,
 	pr.product_key AS product_key,
 	cu.customer_key AS customer_key,
-	sd.sls_order_dt AS order_date,
+	COALESCE(
+		sd.sls_order_dt, 
+		MAX(sd.sls_order_dt) OVER (PARTITION BY sd.sls_ord_num)
+	) AS order_date, -- Fill missing order date using dates of the same order number
 	sd.sls_ship_dt AS shipping_date,
 	sd.sls_due_dt AS due_date,
 	sd.sls_sales AS sales_amount,
@@ -89,3 +94,4 @@ LEFT JOIN gold.dim_products pr
 ON sd.sls_prd_key = pr.product_number
 LEFT JOIN gold.dim_customers cu
 ON sd.sls_cust_id = cu.customer_id;
+GO
